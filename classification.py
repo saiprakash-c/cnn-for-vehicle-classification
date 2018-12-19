@@ -13,11 +13,22 @@ import skimage.transform
 
 import torch
 import torchvision
-from utils import Logger
+#from utils import Logger
 
 import tensorflow as tf
 from tensorflow import nn, layers
 import numpy as np
+from matplotlib.image import imread
+import glob
+import csv
+from collections import defaultdict
+from skimage import transform
+
+
+
+
+
+
 
 # Set random seem for reproducibility
 manualSeed = 999
@@ -29,91 +40,74 @@ tf.set_random_seed(manualSeed)
 #bbox_file = "WIDER_train/wider_face_split/wider_face_train_bbx_gt.txt"
 
 #min_image_size = 64
-#image_size_in = (16, 16, 3)
-#image_size_up = (64, 64, 3)
+image_size = (224, 224, 3)
 
 #making a dictionary for vgg19 values
 data_dict = np.load('vgg19.npy', encoding='latin1').item()
 
-def data_generator():
-    with open(bbox_file) as f:
-        image_name = None
-        bboxes_left = None
-        current_image = None
-        for line in f:
-            line = line.strip()
-            if image_name is None:
-                image_name = line
-                file_name = "WIDER_train/images/{}".format(image_name)
-                current_image = mpimg.imread(file_name)
-                current_image = np.array(current_image, dtype=np.float32) / 255.0 * 2.0 - 1.0
-            elif bboxes_left is None:
-                bboxes_left = int(line)
-            else:
-                numbers = [int(v) for v in line.split(" ")]
-                x, y, w, h = numbers[0:4]
+columns = defaultdict(list)
 
-                bbox = numbers[0:4]
+with open('/home/sai/PycharmProjects/AV/labels.csv') as f:
+    reader = csv.DictReader(f)  # read rows into a dictionary format
+    for row in reader:  # read a row as {column1: value1, column2: value2,...}
+        for (k, v) in row.items():  # go over each column name and value
+            columns[k].append(v)
 
-                # get sub-image and resize
-                # ignore faces that are not already smaller than our small size
-                if h > min_image_size and w > min_image_size:
-                    sub_image = current_image[y:y+h, x:x+w]
-                    full_image = skimage.transform.resize(sub_image, (image_size_up[0], image_size_up[1]), anti_aliasing=True, mode="constant")
-                    small_image = skimage.transform.resize(sub_image, (image_size_in[0], image_size_in[1]), anti_aliasing=True, mode="constant")
-                    full_image = np.rot90(np.array(full_image, dtype=np.float32))
-                    small_image = np.rot90(np.array(small_image, dtype=np.float32))
+path_train = '/home/sai/PycharmProjects/AV/deploy/trainval/*/*.jpg'
+files_train = glob.glob(path_train)
+print(type(files_train))
+n_train = len(files_train)
 
-                    yield (full_image, small_image, 1)
+path_test = '/home/sai/PycharmProjects/AV/deploy/test/*/*.jpg'
+files_test = glob.glob(path_test)
+n_test = len(files_test)
 
-                    # then find a random part of the image for a non-face selection
-                    total_h = current_image.shape[0]
-                    total_w = current_image.shape[1]
-                    h = image_size_up[0]
-                    w = image_size_up[1]
-                    x = random.randint(0, total_w - w)
-                    y = random.randint(0, total_h - h)
-                    full_image = current_image[y:y+h, x:x+w]
-                    small_image = skimage.transform.resize(full_image, (image_size_in[0], image_size_in[1]), anti_aliasing=True, mode="constant")
-                    full_image = np.rot90(full_image)
-                    small_image = np.rot90(np.array(small_image, dtype=np.float32))
+batch_size = 500
 
-                    yield (full_image, small_image, 0)
 
-                bboxes_left -= 1
-                if bboxes_left == 0:
-                    image_name = None
-                    bboxes_left = None
-                    bboxes = []
+#image_train = np.zeros((n_train,224,224,3))
+labels = np.zeros(n_train)
+#image_test = np.zeros((n_test,224,224,3))
 
-def batch_generator(batch_size):
-    data_gen = data_generator()
-    images = []
-    small_images = []
-    labels = []
-    batch_i = 0
-    for (image, small_image, label) in data_gen:
-        images += [image]
-        small_images += [small_image]
-        labels += [label]
-        if len(images) == batch_size:
-            yield (batch_i, (np.stack(images), np.stack(small_images), np.reshape(labels, [-1, 1])))
-            images = []
-            small_images = []
-            labels = []
-            batch_i += 1
-# os.listdir("somedirectory")
+for i in range(len(files_train)):
+    #img = transform.resize(imread(files_train[i]),(224,224))
+    #image_train[i,:,:,:] = img
 
-batch_size = 100
-num_batches = 39370 / batch_size # approximately
+    l2 = list(files_train[i].split('/')[0:-1])
+    l3 = list(os.path.split(os.path.abspath(files_train[i])))
+    l4 = list(l3[1].split('_')[0:-1])
+    image_name = str(l2[-1] + '/' + l4[0])
+    index_label = columns["guid/image"].index(image_name)
+    list_label = columns["label"]
+    labels[i] = list_label[index_label]
+
+
+def batch_generator(e_images,e_labels,which_batch):
+
+    if (which_batch+1)*batch_size > len(e_images):
+        n_images = len(e_images) - which_batch*batch_size
+    else :
+        n_images = batch_size
+
+    b_images = np.zeros((n_images,224,224,3)
+
+    for i in range(n_images) :
+        b_images[i,:,:,:] = skimage.transform.resize(imread(e_images[(which_batch-1)*batch_size + i]))
+
+    b_labels = e_labels[(which_batch-1)*batch_size : (which_batch-1)*batch_size + n_images]
+
+    return b_images, b_labels
+
+
+batch_size = 500
+num_batches = int(n_train / batch_size) +1  # approximately
 
 def noise(size):
     return np.random.normal(size=size)
 
 def discriminator(x):
-    """Start addition"""
     with tf.variable_scope("discriminator", reuse=tf.AUTO_REUSE):
-        #relu - convolutional layers
+        #vgg19_convolutional layers
         with tf.variable_scope("conv1"):
             conv1_1 = conv_layer(x, "conv1_1")
             conv1_2 = conv_layer(conv1_1, "conv1_2")
@@ -144,24 +138,21 @@ def discriminator(x):
             conv5_2 = conv_layer(conv5_1, "conv5_2")
             conv5_3 = conv_layer(conv5_2, "conv5_3")
             conv5_4 = conv_layer(conv5_3, "conv5_4")
-            pool5 = max_pool(conv5_4, 'pool5')
+            #pool5 = max_pool(conv5_4, 'pool5')
 
-        fc6 = fc_layer(pool5, "fc6")
-        assert fc6.get_shape().as_list()[1:] == [4096]
-        relu6 = tf.nn.relu(fc6)
+        #fc6 = fc_layer(pool5, "fc6")
+        #assert fc6.get_shape().as_list()[1:] == [4096]
+        #relu6 = tf.nn.relu(fc6)
 
-        fc7 = fc_layer(relu6, "fc7")
-        relu7 = tf.nn.relu(fc7)
+        #fc7 = fc_layer(relu6, "fc7")
+        #relu7 = tf.nn.relu(fc7)
+        with tf.variable_scope("linear")
+            linear = layers.flatten(conv5_4)
+            out = layers.dense(linear, 4, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
 
-        fc8 = layers.dense(relu7, 4, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
+    return out
 
-        prob = tf.nn.softmax(fc8, name="prob")
-
-        data_dict = None
-
-
-
-def fc_layer(self, bottom, name):
+def fc_layer(bottom, name):
     with tf.variable_scope(name):
         shape = bottom.get_shape().as_list()
         dim = 1
@@ -199,22 +190,33 @@ def conv_layer(bottom, name):
 def get_conv_filter(name):
     return tf.constant(data_dict[name][0], name="filter")
 
+def get_fc_weight(self, name):
+    return tf.constant(data_dict[name][0], name="weights")
+
 def get_bias(name):
     return tf.constant(data_dict[name][1], name="biases")
-"""End of Addition"""
+
+
 
 # real input (full size)
 X = tf.placeholder(tf.float32, shape=(None, ) + image_size_up)
 # real labels (face vs non-face)
 X_labels = tf.placeholder(tf.float32, shape=(None, 1))
-# downsized input image
-Z = tf.placeholder(tf.float32, shape=(None, ) + image_size_in)
+y = tf.one_hot(X_labels,4)
 
 # Discriminator, has two outputs [face (1.0) vs nonface (0.0), real (1.0) vs generated (0.0)]
 
+y_ = discriminator(X)
+
+#node for accuracy
+correct_prediction = tf.equal(tf.argmax[y_,1],tf.argmax[y,1])
+accuracy = tf.reduce_mean(tf.cast(correct_prediction),tf.float32)
+
+
+#node for loss
 D_loss = tf.reduce_mean(
-    nn.sigmoid_cross_entropy_with_logits(
-        logits=D_real_face, labels=X_labels))
+    nn.softmax_cross_entropy_with_logits(
+        logits=out, labels = y))
 
 # Obtain trainable variables for both networks
 train_vars = tf.trainable_variables()
@@ -226,26 +228,22 @@ print("Discriminator parameter count: {}".format(np.sum([np.product(v.get_shape(
 learning_rate = tf.placeholder(tf.float32, shape=[])
 D_opt = tf.train.AdamOptimizer(learning_rate).minimize(D_loss, var_list=D_vars)
 
-num_test_samples = 25
-_, (test_batch, test_small_images, test_labels) = next(batch_generator(num_test_samples))
+#num_test_samples = 25
+#_, (test_batch, test_small_images, test_labels) = next(batch_generator(num_test_samples))
 
+"""Logging"""
+
+"""
 # Create logger instance
-logger = Logger(model_name='FACEGAN')
+logger = Logger(model_name='Log')
 
 # Write out ground truth examples, and "dumb" upscaled examples
 logger.log_images(
     test_batch, num_test_samples,
     -100, 0, num_batches
 )
-compare_images = []
 
-for i in range(num_test_samples):
-    compare_images += [skimage.transform.resize(test_small_images[i], (image_size_up[0], image_size_up[1]), anti_aliasing=True, mode="constant")]
-compare_images = np.stack(compare_images)
-logger.log_images(
-    compare_images, num_test_samples,
-    -100, 1, num_batches
-)
+"""
 
 # Total number of epochs to train
 num_epochs = 10
@@ -259,22 +257,42 @@ saver = tf.train.Saver()
 
 # Initial SR training by itself
 batch_start_time = time.time()
+
 for epoch in range(2):
     lr = 1e-4
-    batch_gen = batch_generator(batch_size)
-    for n_batch, (real_images, small_images, real_labels) in batch_gen:
-        # 2. Train Generator SR
-        feed_dict = {X: real_images, Z: small_images, learning_rate: lr}
-        _, g_error = session.run([G_SR_opt, G_SR_pixel_loss], feed_dict=feed_dict)
+
+    if epoch > 0:
+        saver.save(session, "./model_{}.ckpt".format(epoch))
+
+    #randomize the files
+    d_indices = range(n_train)
+    random.shuffle(d_indices)
+    e_images = files_train[d_indices]
+    e_labels = labels[d_indices]
+
+    for i in range(num_batches):
+        #get the b_images and b_labels
+        n_batch = i+1
+        b_images,b_labels = batch_generator(e_images,e_labels,n_batch)
+
+        #Train Discriminator
+        feed_dict = {X: b_images, X_labels: b_labels learning_rate: lr}
+        _,Loss, Accuracy = session.run([D_opt, D_loss, accuracy], feed_dict=feed_dict)
 
         # Display Progress every few batches
         if n_batch % 2 == 0:
+            #print the time taken by the bathces
             now_time = time.time()
             elapsed = now_time - batch_start_time
             batch_start_time = now_time
-            print("Batches took {:.3f} ms".format(elapsed * 1000))
 
-            test_images = session.run(G_sample, feed_dict={Z: test_small_images})
+            print("Batches took {:.3f} ms".format(elapsed * 1000))
+            print("epoch:",epoch/num_epochs,"n_batches:",n_batch/num_batches, "Loss:", Loss,
+                  "Accuracy:" ,Accuracy)
+
+
+            """
+            test_images = session.run(out, feed_dict={X:test_images})
             test_images = (test_images + 1.0) * 0.5
 
             logger.log_images(
@@ -284,10 +302,19 @@ for epoch in range(2):
             # Display status Logs
             logger.display_status(
                 epoch, num_epochs, n_batch, num_batches,
-                -1, g_error, -1, [-1], [-1]
+                -1, D_error, -1, [-1], [-1]
             )
-saver.save(session, "./model_sr_only.ckpt")
+            
+            """
 
+saver.save(session, "./model_full.ckpt")
+
+
+
+
+
+
+"""
 real_face_sum = 0
 fake_face_sum = 0
 total_sum = 0
@@ -336,3 +363,4 @@ for epoch in range(num_epochs):
             print("Real accuracy ({}/{}) {:.2f}%    Fake accuracy ({}/{}) {:.2f}%".format(real_face_sum, total_sum, real_face_sum / total_sum * 100,
                                                                                           fake_face_sum, total_sum, fake_face_sum / total_sum * 100,))
 saver.save(session, "./model_full.ckpt")
+"""
