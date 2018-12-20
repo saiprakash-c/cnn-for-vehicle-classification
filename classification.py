@@ -3,18 +3,8 @@
 import time
 import random
 import os
-
-# supress silly warnings from master branch of tensorflow...
-# import sys
-# sys.stderr = None
-
-import matplotlib.image as mpimg
 import skimage.transform
-
-#import torch
-#import torchvision
 #from utils import Logger
-
 import tensorflow as tf
 from tensorflow import nn, layers
 import numpy as np
@@ -28,13 +18,7 @@ from skimage import transform
 # Set random seem for reproducibility
 manualSeed = 999
 np.random.seed(manualSeed)
-#torch.manual_seed(manualSeed)
-#tf.set_random_seed(manualSeed)
 
-# make dictionary of lists of all bounding boxes
-#bbox_file = "WIDER_train/wider_face_split/wider_face_train_bbx_gt.txt"
-
-#min_image_size = 64
 image_size = (224, 224, 3)
 
 #making a dictionary for vgg19 values
@@ -42,32 +26,26 @@ data_dict = np.load('vgg19.npy', encoding='latin1').item()
 
 columns = defaultdict(list)
 
-with open('/home/sai/PycharmProjects/AV/labels.csv') as f:
+with open('../labels.csv') as f:
     reader = csv.DictReader(f)  # read rows into a dictionary format
     for row in reader:  # read a row as {column1: value1, column2: value2,...}
         for (k, v) in row.items():  # go over each column name and value
             columns[k].append(v)
 
-path_train = '/home/sai/PycharmProjects/AV/deploy/trainval/*/*.jpg'
+path_train = '../deploy/trainval/*/*.jpg'
 files_train = glob.glob(path_train)
 print(type(files_train))
 n_train = len(files_train)
 
-path_test = '/home/sai/PycharmProjects/AV/deploy/test/*/*.jpg'
+path_test = '../deploy/test/*/*.jpg'
 files_test = glob.glob(path_test)
 n_test = len(files_test)
 
-batch_size = 500
+batch_size =  10
 
-
-#image_train = np.zeros((n_train,224,224,3))
 labels = np.zeros(n_train)
-#image_test = np.zeros((n_test,224,224,3))
 
 for i in range(len(files_train)):
-    #img = transform.resize(imread(files_train[i]),(224,224))
-    #image_train[i,:,:,:] = img
-
     l2 = list(files_train[i].split('/')[0:-1])
     l3 = list(os.path.split(os.path.abspath(files_train[i])))
     l4 = list(l3[1].split('_')[0:-1])
@@ -87,15 +65,15 @@ def batch_generator(e_images,e_labels,which_batch):
     b_images = np.zeros((n_images,224,224,3))
 
     for j in range(n_images) :
-        b_images[j,:,:,:] = skimage.transform.resize(imread(e_images[(which_batch-1)*batch_size + j]))
+        b_images[j,:,:,:] = skimage.transform.resize(imread(e_images[(which_batch-1)*batch_size + j]),(224,224))
 
-    b_labels = e_labels[(which_batch-1)*batch_size : (which_batch-1)*batch_size + n_images]
+    b_labels = np.reshape(np.array(e_labels[(which_batch-1)*batch_size : (which_batch-1)*batch_size + n_images]),(n_images, 1))
 
     return b_images, b_labels
 
 
 batch_size = 10
-num_batches = int(n_train / batch_size) +1  # approximately
+num_batches = int(n_train / batch_size) +1
 
 def noise(size):
     return np.random.normal(size=size)
@@ -192,7 +170,6 @@ def get_bias(name):
     return tf.constant(data_dict[name][1], name="biases")
 
 
-
 # real input (full size)
 X = tf.placeholder(tf.float32, shape=(None, ) + image_size)
 # real labels (face vs non-face)
@@ -223,8 +200,6 @@ print("Discriminator parameter count: {}".format(np.sum([np.product(v.get_shape(
 learning_rate = tf.placeholder(tf.float32, shape=[])
 D_opt = tf.train.AdamOptimizer(learning_rate).minimize(D_loss, var_list=D_vars)
 
-#num_test_samples = 25
-#_, (test_batch, test_small_images, test_labels) = next(batch_generator(num_test_samples))
 
 """Logging"""
 
@@ -284,6 +259,7 @@ for epoch in range(2):
             print("Batches took {:.3f} ms".format(elapsed * 1000))
             print("epoch:",epoch/num_epochs,"n_batches:",n_batch/num_batches, "Loss:", Loss,
                   "Accuracy:" ,Accuracy)
+    #print stats for entire epoch
 
 
             """
