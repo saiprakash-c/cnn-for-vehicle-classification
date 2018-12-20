@@ -49,7 +49,7 @@ def batch_generator(e_images, which_batch):
 
     for j in range(n_images):
         b_images[j, :, :, :] = skimage.transform.resize(imread(e_images[(which_batch - 1) * batch_size + j]),
-                                                        (224, 224)
+                                                        (224, 224))
     return b_images
 
 
