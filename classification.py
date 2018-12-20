@@ -36,6 +36,7 @@ path_train = '../deploy/trainval/*/*.jpg'
 files_train = glob.glob(path_train)
 print(type(files_train))
 n_train = len(files_train)
+print(n_train)
 
 path_test = '../deploy/test/*/*.jpg'
 files_test = glob.glob(path_test)
@@ -57,24 +58,25 @@ for i in range(len(files_train)):
 
 def batch_generator(e_images,e_labels,which_batch):
 
-    if (which_batch+1)*batch_size > len(e_images):
-        n_images = len(e_images) - which_batch*batch_size
+    if (which_batch)*batch_size > len(e_images):
+        n_images = len(e_images) - (which_batch-1)*batch_size
     else :
         n_images = batch_size
+
+    print("Batch_size",n_images)
 
     b_images = np.zeros((n_images,224,224,3))
 
     for j in range(n_images) :
         b_images[j,:,:,:] = skimage.transform.resize(imread(e_images[(which_batch-1)*batch_size + j]),(224,224))
 
-    b_labels = np.reshape(np.array(e_labels[(which_batch-1)*batch_size : (which_batch-1)*batch_size + n_images]),(n_images, 1))
+    b_labels = np.array(e_labels[(which_batch-1)*batch_size : (which_batch-1)*batch_size + n_images])
 
     return b_images, b_labels
 
 
 batch_size = 10
-num_batches = int(n_train / batch_size) +1
-
+num_batches = int(round(n_train / batch_size))
 def noise(size):
     return np.random.normal(size=size)
 
@@ -173,15 +175,17 @@ def get_bias(name):
 # real input (full size)
 X = tf.placeholder(tf.float32, shape=(None, ) + image_size)
 # real labels (face vs non-face)
-X_labels = tf.placeholder(tf.uint8, shape=(None, 1))
+X_labels = tf.placeholder(tf.uint8, shape=(None,))
+print("shape of X_labels",X_labels.shape)
 y = tf.one_hot(X_labels,4)
+print("shape of y", y.shape)
 
 # Discriminator, has two outputs [face (1.0) vs nonface (0.0), real (1.0) vs generated (0.0)]
 
 y_ = discriminator(X)
 
 #node for accuracy
-correct_prediction = tf.equal(tf.argmax[y_,1],tf.argmax[y,1])
+correct_prediction = tf.equal(tf.argmax(y_,1),tf.argmax(y,1))
 accuracy = tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
 
 
@@ -228,17 +232,17 @@ saver = tf.train.Saver()
 # Initial SR training by itself
 batch_start_time = time.time()
 
-for epoch in range(2):
+for epoch in range(num_epochs):
     lr = 1e-4
 
     if epoch > 0:
         saver.save(session, "./model_{}.ckpt".format(epoch))
 
     #randomize the files
-    d_indices = range(n_train)
+    d_indices = list(range(n_train))
     random.shuffle(d_indices)
-    e_images = files_train[d_indices]
-    e_labels = labels[d_indices]
+    e_images = [files_train[i] for i in d_indices]
+    e_labels = np.array([labels[i] for i in d_indices])
 
     for i in range(num_batches):
         #get the b_images and b_labels
@@ -257,7 +261,7 @@ for epoch in range(2):
             batch_start_time = now_time
 
             print("Batches took {:.3f} ms".format(elapsed * 1000))
-            print("epoch:",epoch/num_epochs,"n_batches:",n_batch/num_batches, "Loss:", Loss,
+            print("epoch:",epoch,"/",num_epochs,"n_batches:",n_batch,"/",num_batches, "Loss:", Loss,
                   "Accuracy:" ,Accuracy)
     #print stats for entire epoch
 
