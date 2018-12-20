@@ -32,16 +32,14 @@ n_test = len(files_test)
 
 batch_size = 10
 
-labels = np.zeros(n_train)
 
-for i in range(len(files_train)):
-    l2 = list(files_train[i].split('/')[0:-1])
-    l3 = list(os.path.split(os.path.abspath(files_train[i])))
+for i in range(len(files_test)):
+    l2 = list(files_test[i].split('/')[0:-1])
+    l3 = list(os.path.split(os.path.abspath(files_test[i])))
     l4 = list(l3[1].split('_')[0:-1])
     image_name = str(l2[-1] + '/' + l4[0])
     index_label = columns["guid/image"].index(image_name)
     list_label = columns["label"]
-    labels[i] = list_label[index_label]
 
 
 def batch_generator(e_images, e_labels, which_batch):
@@ -63,7 +61,7 @@ def batch_generator(e_images, e_labels, which_batch):
 
 
 batch_size = 10
-num_batches = int(round(n_train / batch_size))
+num_batches = int(round(n_test / batch_size))
 
 
 def noise(size):
@@ -171,9 +169,7 @@ def get_bias(name):
 # real input (full size)
 X = tf.placeholder(tf.float32, shape=(None,) + image_size)
 
-print("shape of X_labels", X_labels.shape)
-y = tf.one_hot(X_labels, 4)
-print("shape of y", y.shape)
+
 
 # Discriminator, has two outputs [face (1.0) vs nonface (0.0), real (1.0) vs generated (0.0)]
 
@@ -182,10 +178,6 @@ y_ = discriminator(X)
 hard_y_ = tf.argmax(y_,1)
 
 
-# node for loss
-D_loss = tf.reduce_mean(
-    nn.softmax_cross_entropy_with_logits(
-        logits=y_, labels=y))
 
 # Obtain trainable variables for both networks
 train_vars = tf.trainable_variables()
@@ -194,8 +186,6 @@ D_vars = [var for var in train_vars if 'discriminator' in var.name]
 
 print("Discriminator parameter count: {}".format(np.sum([np.product(v.get_shape()) for v in D_vars])))
 
-learning_rate = tf.placeholder(tf.float32, shape=[])
-D_opt = tf.train.AdamOptimizer(learning_rate).minimize(D_loss, var_list=D_vars)
 
 """Logging"""
 
@@ -235,14 +225,11 @@ for i in range(num_batches):
     b_images = batch_generator(e_images)
 
     # Train Discriminator
-    feed_dict = {X: b_images, learning_rate: lr}
+    feed_dict = {X: b_images}
 
-    _, b_labels, Loss= session.run([D_opt,hard_y_ D_loss], feed_dict=feed_dict)
+    b_labels= session.run([hard_y_], feed_dict=feed_dict)
 
     print(b_labels)
-
-    print("Batches took {:.3f} ms".format(elapsed * 1000))
-    print( "Loss:", Loss, "Accuracy:", Accuracy)
 
     labels[i*batch_size : (i+1)*batch_size,:] = b_labels
 
