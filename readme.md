@@ -8,7 +8,7 @@ To clone : type
 
 git clone https://www.github.com/saiprakash-c/vehicle_class
 
-Markup : #Files to be run#: 
+#Files to be run
 Training - classification.py
 Testing - testing.py 
 
