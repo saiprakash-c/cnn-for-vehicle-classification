@@ -89,10 +89,10 @@ def batch_generator(e_images,e_labels,which_batch):
     else :
         n_images = batch_size
 
-    b_images = np.zeros((n_images,224,224,3)
+    b_images = np.zeros((n_images,224,224,3))
 
-    for i in range(n_images) :
-        b_images[i,:,:,:] = skimage.transform.resize(imread(e_images[(which_batch-1)*batch_size + i]))
+    for j in range(n_images) :
+        b_images[j,:,:,:] = skimage.transform.resize(imread(e_images[(which_batch-1)*batch_size + j]))
 
     b_labels = e_labels[(which_batch-1)*batch_size : (which_batch-1)*batch_size + n_images]
 
@@ -146,7 +146,7 @@ def discriminator(x):
 
         #fc7 = fc_layer(relu6, "fc7")
         #relu7 = tf.nn.relu(fc7)
-        with tf.variable_scope("linear")
+        with tf.variable_scope("linear"):
             linear = layers.flatten(conv5_4)
             out = layers.dense(linear, 4, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
 
@@ -199,7 +199,7 @@ def get_bias(name):
 
 
 # real input (full size)
-X = tf.placeholder(tf.float32, shape=(None, ) + image_size_up)
+X = tf.placeholder(tf.float32, shape=(None, ) + image_size)
 # real labels (face vs non-face)
 X_labels = tf.placeholder(tf.float32, shape=(None, 1))
 y = tf.one_hot(X_labels,4)
@@ -216,7 +216,7 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction),tf.float32)
 #node for loss
 D_loss = tf.reduce_mean(
     nn.softmax_cross_entropy_with_logits(
-        logits=out, labels = y))
+        logits=y_, labels = y))
 
 # Obtain trainable variables for both networks
 train_vars = tf.trainable_variables()
