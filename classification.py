@@ -123,7 +123,7 @@ def discriminator(x):
         #relu7 = tf.nn.relu(fc7)
         with tf.variable_scope("linear"):
             linear = layers.flatten(conv5_4)
-            y_ = layers.dense(linear, 4, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
+            y_ = layers.dense(linear, 3, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
 
     return y_
 
@@ -177,7 +177,7 @@ X = tf.placeholder(tf.float32, shape=(None, ) + image_size)
 # real labels (face vs non-face)
 X_labels = tf.placeholder(tf.uint8, shape=(None,))
 print("shape of X_labels",X_labels.shape)
-y = tf.one_hot(X_labels,4)
+y = tf.one_hot(X_labels,3)
 print("shape of y", y.shape)
 
 # Discriminator, has two outputs [face (1.0) vs nonface (0.0), real (1.0) vs generated (0.0)]
@@ -232,10 +232,16 @@ saver = tf.train.Saver()
 # Initial SR training by itself
 batch_start_time = time.time()
 
-for epoch in range(num_epochs):
+loss_batch = np.zeros((num_epochs*num_batches,1))
+accuracy_batch= np.zeros((num_epochs*num_batches,1))
+
+loss_epoch = np.zeros((num_epochs,1))
+accuracy_epoch = np.zeros((num_epochs,1))
+
+for epoch in range(1,num_epochs+1):
     lr = 1e-4
 
-    if epoch > 0:
+    if epoch > 1:
         saver.save(session, "./model_{}.ckpt".format(epoch))
 
     #randomize the files
@@ -252,7 +258,9 @@ for epoch in range(num_epochs):
         #Train Discriminator
         feed_dict = {X: b_images, X_labels: b_labels, learning_rate: lr}
         _,Loss, Accuracy = session.run([D_opt, D_loss, accuracy], feed_dict=feed_dict)
-
+        loss_batch[(epoch-1)*batch_size + n_batch,:]  = Loss
+        accuracy_batch[(epoch-1)*batch_size + n_batch,:] = Accuracy
+        np.savetxt("epoch_batch_data.txt",np.column_stack((loss_batch,accuracy_batch)))
         # Display Progress every few batches
         if n_batch % 2 == 0:
             #print the time taken by the bathces
@@ -264,7 +272,12 @@ for epoch in range(num_epochs):
             print("epoch:",epoch,"/",num_epochs,"n_batches:",n_batch,"/",num_batches, "Loss:", Loss,
                   "Accuracy:" ,Accuracy)
     #print stats for entire epoch
-
+    
+    feed_dict = {X:all_images, X_labesls:all_labels, learning_rate:lr}
+    Loss,Accuracy = session.run([D_loss,accuracy],feed_dict = feed_dict)
+    loss_epoch[epoch-1] = Loss
+    accuracy_epoch[epoch-1] = Accuracy
+    np.savetxt("epoch_epoch_data.txt",np.column_stack((loss_epoch,accuracy_epoch)))
 
             """
             test_images = session.run(out, feed_dict={X:test_images})
