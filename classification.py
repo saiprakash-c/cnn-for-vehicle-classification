@@ -11,8 +11,8 @@ import os
 import matplotlib.image as mpimg
 import skimage.transform
 
-import torch
-import torchvision
+#import torch
+#import torchvision
 #from utils import Logger
 
 import tensorflow as tf
@@ -25,16 +25,11 @@ from collections import defaultdict
 from skimage import transform
 
 
-
-
-
-
-
 # Set random seem for reproducibility
 manualSeed = 999
 np.random.seed(manualSeed)
-torch.manual_seed(manualSeed)
-tf.set_random_seed(manualSeed)
+#torch.manual_seed(manualSeed)
+#tf.set_random_seed(manualSeed)
 
 # make dictionary of lists of all bounding boxes
 #bbox_file = "WIDER_train/wider_face_split/wider_face_train_bbx_gt.txt"
@@ -99,7 +94,7 @@ def batch_generator(e_images,e_labels,which_batch):
     return b_images, b_labels
 
 
-batch_size = 500
+batch_size = 10
 num_batches = int(n_train / batch_size) +1  # approximately
 
 def noise(size):
@@ -148,9 +143,9 @@ def discriminator(x):
         #relu7 = tf.nn.relu(fc7)
         with tf.variable_scope("linear"):
             linear = layers.flatten(conv5_4)
-            out = layers.dense(linear, 4, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
+            y_ = layers.dense(linear, 4, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
 
-    return out
+    return y_
 
 def fc_layer(bottom, name):
     with tf.variable_scope(name):
@@ -201,7 +196,7 @@ def get_bias(name):
 # real input (full size)
 X = tf.placeholder(tf.float32, shape=(None, ) + image_size)
 # real labels (face vs non-face)
-X_labels = tf.placeholder(tf.float32, shape=(None, 1))
+X_labels = tf.placeholder(tf.uint8, shape=(None, 1))
 y = tf.one_hot(X_labels,4)
 
 # Discriminator, has two outputs [face (1.0) vs nonface (0.0), real (1.0) vs generated (0.0)]
@@ -210,7 +205,7 @@ y_ = discriminator(X)
 
 #node for accuracy
 correct_prediction = tf.equal(tf.argmax[y_,1],tf.argmax[y,1])
-accuracy = tf.reduce_mean(tf.cast(correct_prediction),tf.float32)
+accuracy = tf.reduce_mean(tf.cast(correct_prediction,tf.float32))
 
 
 #node for loss
@@ -276,7 +271,7 @@ for epoch in range(2):
         b_images,b_labels = batch_generator(e_images,e_labels,n_batch)
 
         #Train Discriminator
-        feed_dict = {X: b_images, X_labels: b_labels learning_rate: lr}
+        feed_dict = {X: b_images, X_labels: b_labels, learning_rate: lr}
         _,Loss, Accuracy = session.run([D_opt, D_loss, accuracy], feed_dict=feed_dict)
 
         # Display Progress every few batches
