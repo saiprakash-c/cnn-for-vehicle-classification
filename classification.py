@@ -32,7 +32,7 @@ with open('../labels.csv') as f:
         for (k, v) in row.items():  # go over each column name and value
             columns[k].append(v)
 
-path_train = '../deploy/trainval/*/*.jpg'
+path_train = '../trainval/*/*.jpg'
 files_train = glob.glob(path_train)
 print(type(files_train))
 n_train = len(files_train)
@@ -42,7 +42,7 @@ path_test = '../deploy/test/*/*.jpg'
 files_test = glob.glob(path_test)
 n_test = len(files_test)
 
-batch_size =  10
+batch_size =  100
 
 labels = np.zeros(n_train)
 
@@ -65,18 +65,20 @@ def batch_generator(e_images,e_labels,which_batch):
 
     print("Batch_size",n_images)
 
-    b_images = np.zeros((n_images,224,224,3))
+    b_images = np.zeros((n_images,)+image_size)
 
     for j in range(n_images) :
-        b_images[j,:,:,:] = skimage.transform.resize(imread(e_images[(which_batch-1)*batch_size + j]),(224,224))
+        b_images[j,:,:,:] = skimage.transform.resize(imread(e_images[(which_batch-1)*batch_size + j]),image_size)
 
     b_labels = np.array(e_labels[(which_batch-1)*batch_size : (which_batch-1)*batch_size + n_images])
 
     return b_images, b_labels
 
+if n_train%batch_size ==0:
+    num_batches = int(n_train/batch_size)
+else :
+    num_batches = int(n_train/batch_size)+1
 
-batch_size = 10
-num_batches = int(round(n_train / batch_size))
 def noise(size):
     return np.random.normal(size=size)
 
@@ -238,7 +240,10 @@ accuracy_batch= np.zeros((num_epochs*num_batches,1))
 loss_epoch = np.zeros((num_epochs,1))
 accuracy_epoch = np.zeros((num_epochs,1))
 
+
 for epoch in range(1,num_epochs+1):
+    d_Loss = 0
+    d_Accuracy = 0
     lr = 1e-4
 
     if epoch > 1:
@@ -272,28 +277,27 @@ for epoch in range(1,num_epochs+1):
             print("epoch:",epoch,"/",num_epochs,"n_batches:",n_batch,"/",num_batches, "Loss:", Loss,
                   "Accuracy:" ,Accuracy)
     #print stats for entire epoch
-    
-    feed_dict = {X:all_images, X_labesls:all_labels, learning_rate:lr}
-    Loss,Accuracy = session.run([D_loss,accuracy],feed_dict = feed_dict)
-    loss_epoch[epoch-1] = Loss
-    accuracy_epoch[epoch-1] = Accuracy
+    for i in range(num_batches):
+        #get the b_images and b_labels
+        n_batch = i+1
+        b_images,b_labels = batch_generator(e_images,e_labels,n_batch)
+        if (n_batch)*batch_size > len(e_images):
+            n_images = len(e_images) - (n_batch-1)*batch_size
+        else :
+            n_images = batch_size
+
+        #Train Discriminator
+        feed_dict = {X: b_images, X_labels: b_labels, learning_rate: lr}
+        Loss, Accuracy = session.run([D_loss, accuracy], feed_dict=feed_dict)
+        d_Loss += Loss*n_images
+        d_Accuracy += Accuracy * n_images
+    loss_epoch[(epoch-1),:]  = d_Loss/n_train
+    accuracy_epoch[(epoch-1),:] = d_Accuracy/n_train
     np.savetxt("epoch_epoch_data.txt",np.column_stack((loss_epoch,accuracy_epoch)))
+    print("-----------------------------------------------\nepoch:",epoch,"/",num_epochs,"n_batches:","Loss:", d_Loss/n_train,
+                  "Accuracy:" ,d_Accuracy/n_train,"\n----------------------------------")
 
-            """
-            test_images = session.run(out, feed_dict={X:test_images})
-            test_images = (test_images + 1.0) * 0.5
 
-            logger.log_images(
-                test_images, num_test_samples,
-                epoch-10, n_batch, num_batches
-            )
-            # Display status Logs
-            logger.display_status(
-                epoch, num_epochs, n_batch, num_batches,
-                -1, D_error, -1, [-1], [-1]
-            )
-            
-            """
 
 saver.save(session, "./model_full.ckpt")
 
