@@ -4,10 +4,12 @@ The data for this can be downloaded at https://www.kaggle.com/c/fall2018-rob535-
 
 Github repository : 
 
-To clone : https://www.github.com/saiprakash-c/vehicle_class
+To clone : type \\
+
+git clone https://www.github.com/saiprakash-c/vehicle_class
 
 Files to be run: 
-Training - classification.py
+Training - classification.py\\
 Testing - testing.py 
 
 Packages needed:
