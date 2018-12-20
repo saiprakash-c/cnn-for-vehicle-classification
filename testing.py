@@ -30,19 +30,15 @@ files_test = glob.glob(path_test)
 n_test = len(files_test)
 
 
-batch_size = 10
-
-
+names =  []
 for i in range(len(files_test)):
     l2 = list(files_test[i].split('/')[0:-1])
     l3 = list(os.path.split(os.path.abspath(files_test[i])))
     l4 = list(l3[1].split('_')[0:-1])
-    image_name = str(l2[-1] + '/' + l4[0])
-    index_label = columns["guid/image"].index(image_name)
-    list_label = columns["label"]
+    names.append(str(l2[-1] + '/' + l4[0]))
 
 
-def batch_generator(e_images, e_labels, which_batch):
+def batch_generator(e_images, which_batch):
     if (which_batch) * batch_size > len(e_images):
         n_images = len(e_images) - (which_batch - 1) * batch_size
     else:
@@ -60,7 +56,7 @@ def batch_generator(e_images, e_labels, which_batch):
     return b_images
 
 
-batch_size = 10
+batch_size = 100
 num_batches = int(round(n_test / batch_size))
 
 
@@ -210,7 +206,7 @@ tf.global_variables_initializer().run()
 
 saver = tf.train.Saver()
 
-saver.restore(session, tf.train.latest_checkpoint("/mnt/c/Users/Acshi/Documents/Devel/eecs504_final_project/ComputerVision/"))
+saver.restore(session, tf.train.latest_checkpoint("/home/ubuntu/vehicle_class"))
 
 labels = np.zeros((n_test,1))
 
@@ -222,37 +218,29 @@ for i in range(num_batches):
 
     # get the b_images and b_labels
 
-    b_images = batch_generator(e_images)
+    b_images = batch_generator(e_images, i+1)
+    if (i+1) * batch_size > len(e_images):
+        n_images = len(e_images) - (which_batch - 1) * batch_size
+    else:
+        n_images = batch_size
 
     # Train Discriminator
     feed_dict = {X: b_images}
 
     b_labels= session.run([hard_y_], feed_dict=feed_dict)
 
-    print(b_labels)
 
-    labels[i*batch_size : (i+1)*batch_size,:] = b_labels
+    labels[i*batch_size : i*batch_size + n_images,0] =b_labels[0]
 
-#np.savetxt('submission1.csv', zip(files_train,labels), delimiter=',', header = "guid/image,label",fmt='%f')
+
+labels.astype(int)
+
+names = np.reshape(np.array(names),(n_test,1))
+final = np.column_stack((names,labels))
+np.savetxt('submission2.csv', final, delimiter=',', header = "guid/image,label",fmt='%s')
 
 # print stats for entire epoch
 
-
-    """
-    test_images = session.run(out, feed_dict={X:test_images})
-    test_images = (test_images + 1.0) * 0.5
-
-    logger.log_images(
-        test_images, num_test_samples,
-        epoch-10, n_batch, num_batches
-    )
-    # Display status Logs
-    logger.display_status(
-        epoch, num_epochs, n_batch, num_batches,
-        -1, D_error, -1, [-1], [-1]
-    )
-
-    """
 
 
 """
@@ -276,7 +264,6 @@ for epoch in range(num_epochs):
         real_face_sum += np.sum(d_real_face.round() == real_labels)
         fake_face_sum += np.sum(d_fake_face.round() == real_labels)
         total_sum += len(real_images)
-
         # 2. Train Generator
         feed_dict = {X: real_images, X_labels: real_labels, Z: small_images, learning_rate: lr}
         _, g_error = session.run([G_opt, G_loss], feed_dict=feed_dict)
@@ -288,7 +275,7 @@ for epoch in range(num_epochs):
             batch_start_time = now_time
             print("Batches took {:.3f} ms".format(elapsed * 1000))
 
-            test_images = session.run(G_sample2, feed_dict={Z: test_small_images})
+            test_images = session.runG_sample2, feed_dict={Z: test_small_images})
             test_images = (test_images + 1.0) * 0.5
 
             logger.log_images(
