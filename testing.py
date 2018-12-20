@@ -4,7 +4,6 @@ import time
 import random
 import os
 import skimage.transform
-# from utils import Logger
 import tensorflow as tf
 from tensorflow import nn, layers
 import numpy as np
@@ -50,9 +49,7 @@ def batch_generator(e_images, which_batch):
 
     for j in range(n_images):
         b_images[j, :, :, :] = skimage.transform.resize(imread(e_images[(which_batch - 1) * batch_size + j]),
-                                                        (224, 224))
-
-
+                                                        (224, 224)
     return b_images
 
 
@@ -97,17 +94,9 @@ def discriminator(x):
             conv5_3 = conv_layer(conv5_2, "conv5_3")
             conv5_4 = conv_layer(conv5_3, "conv5_4")
             # pool5 = max_pool(conv5_4, 'pool5')
-
-        # fc6 = fc_layer(pool5, "fc6")
-        # assert fc6.get_shape().as_list()[1:] == [4096]
-        # relu6 = tf.nn.relu(fc6)
-
-        # fc7 = fc_layer(relu6, "fc7")
-        # relu7 = tf.nn.relu(fc7)
         with tf.variable_scope("linear"):
             linear = layers.flatten(conv5_4)
             y_ = layers.dense(linear, 3, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
-
     return y_
 
 
@@ -121,11 +110,7 @@ def fc_layer(bottom, name):
 
         weights = get_fc_weight(name)
         biases = get_bias(name)
-
-        # Fully connected layer. Note that the '+' operation automatically
-        # broadcasts the biases.
         fc = tf.nn.bias_add(tf.matmul(x, weights), biases)
-
         return fc
 
 
@@ -162,42 +147,14 @@ def get_bias(name):
     return tf.constant(data_dict[name][1], name="biases")
 
 
-# real input (full size)
 X = tf.placeholder(tf.float32, shape=(None,) + image_size)
-
-
-
-# Discriminator, has two outputs [face (1.0) vs nonface (0.0), real (1.0) vs generated (0.0)]
-
 y_ = discriminator(X)
-
 hard_y_ = tf.argmax(y_,1)
 
-
-
-# Obtain trainable variables for both networks
 train_vars = tf.trainable_variables()
-
 D_vars = [var for var in train_vars if 'discriminator' in var.name]
 
 print("Discriminator parameter count: {}".format(np.sum([np.product(v.get_shape()) for v in D_vars])))
-
-
-"""Logging"""
-
-"""
-# Create logger instance
-logger = Logger(model_name='Log')
-
-# Write out ground truth examples, and "dumb" upscaled examples
-logger.log_images(
-    test_batch, num_test_samples,
-    -100, 0, num_batches
-)
-
-"""
-
-
 
 # Start interactive session
 session = tf.InteractiveSession()
@@ -215,8 +172,6 @@ for i in range(num_batches):
     d_indices = list(range(n_test))
 
     e_images = [files_test[i] for i in d_indices]
-
-    # get the b_images and b_labels
 
     b_images = batch_generator(e_images, i+1)
     if (i+1) * batch_size > len(e_images):
@@ -237,51 +192,4 @@ labels = labels.astype(int)
 
 names = np.reshape(np.array(names),(n_test,1))
 final = np.column_stack((names,labels))
-np.savetxt('submission2.csv', final, delimiter=',', header = "guid/image,label",fmt='%s')
-
-# print stats for entire epoch
-
-
-
-"""
-real_face_sum = 0
-fake_face_sum = 0
-total_sum = 0
-
-batch_start_time = time.time()
-for epoch in range(num_epochs):
-    if epoch > 0:
-        saver.save(session, "./model_{}.ckpt".format(epoch))
-
-    lr = 1e-4 if epoch < 5 else 1e-5
-
-    batch_gen = batch_generator(batch_size)
-    for n_batch, (real_images, small_images, real_labels) in batch_gen:
-        # 1. Train Discriminator
-        feed_dict = {X: real_images, X_labels: real_labels, Z: small_images, learning_rate: lr}
-        _, d_error, d_pred_real, d_pred_fake, d_real_face, d_fake_face = session.run([D_opt, D_loss, D_real, D_fake, D_real_face, D_fake_face], feed_dict=feed_dict)
-
-        real_face_sum += np.sum(d_real_face.round() == real_labels)
-        fake_face_sum += np.sum(d_fake_face.round() == real_labels)
-        total_sum += len(real_images)
-        # 2. Train Generator
-        feed_dict = {X: real_images, X_labels: real_labels, Z: small_images, learning_rate: lr}
-        _, g_error = session.run([G_opt, G_loss], feed_dict=feed_dict)
-
-        # Display Progress every few batches
-        if n_batch % 2 == 0:
-            now_time = time.time()
-            elapsed = now_time - batch_start_time
-            batch_start_time = now_time
-            print("Batches took {:.3f} ms".format(elapsed * 1000))
-
-            test_images = session.runG_sample2, feed_dict={Z: test_small_images})
-            test_images = (test_images + 1.0) * 0.5
-
-            logger.log_images(
-                test_images, num_test_samples,
-            )
-            # Display status Logs
-            logger.display_status(
-                epoch, num_epochs, n_batch, num_ba
-"""
+np.savetxt('submission2.csv', final, delimiter=',', header = "guid/image,label",fmt='%s',comments ='')
