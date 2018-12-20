@@ -106,7 +106,7 @@ def discriminator(x):
         # relu7 = tf.nn.relu(fc7)
         with tf.variable_scope("linear"):
             linear = layers.flatten(conv5_4)
-            y_ = layers.dense(linear, 4, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
+            y_ = layers.dense(linear, 3, use_bias=False, kernel_initializer=tf.initializers.random_normal(0.0, 0.1))
 
     return y_
 
@@ -206,7 +206,7 @@ tf.global_variables_initializer().run()
 
 saver = tf.train.Saver()
 
-saver.restore(session, tf.train.latest_checkpoint("/home/ubuntu/vehicle_class"))
+saver.restore(session, "model_6.ckpt")
 
 labels = np.zeros((n_test,1))
 
@@ -233,7 +233,7 @@ for i in range(num_batches):
     labels[i*batch_size : i*batch_size + n_images,0] =b_labels[0]
 
 
-labels.astype(int)
+labels = labels.astype(int)
 
 names = np.reshape(np.array(names),(n_test,1))
 final = np.column_stack((names,labels))
@@ -280,15 +280,8 @@ for epoch in range(num_epochs):
 
             logger.log_images(
                 test_images, num_test_samples,
-                epoch, n_batch, num_batches
             )
             # Display status Logs
             logger.display_status(
-                epoch, num_epochs, n_batch, num_batches,
-                d_error, g_error, 0, d_pred_real, d_pred_fake
-            )
-
-            print("Real accuracy ({}/{}) {:.2f}%    Fake accuracy ({}/{}) {:.2f}%".format(real_face_sum, total_sum, real_face_sum / total_sum * 100,
-                                                                                          fake_face_sum, total_sum, fake_face_sum / total_sum * 100,))
-saver.save(session, "./model_full.ckpt")
+                epoch, num_epochs, n_batch, num_ba
 """
