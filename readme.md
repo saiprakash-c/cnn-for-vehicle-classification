@@ -1,16 +1,19 @@
 This is made as part of course project for Self Driving Cars at umich. 
 
-# To clone : type
+## To clone : type
 
 git clone https://www.github.com/saiprakash-c/vehicle_class
 
-# Files to be run
+## Files to be run
 Training - classification.py
+
 Testing - testing.py 
 
-# Packages needed:
+## Packages needed:
 Numpy
+
 Tensorflow
+
 scikit-image
 
 # Download
