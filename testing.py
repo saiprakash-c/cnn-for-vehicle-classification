@@ -192,4 +192,4 @@ labels = labels.astype(int)
 
 names = np.reshape(np.array(names),(n_test,1))
 final = np.column_stack((names,labels))
-np.savetxt('submission2.csv', final, delimiter=',', header = "guid/image,label",fmt='%s',comments ='')
+np.savetxt('submission.csv', final, delimiter=',', header = "guid/image,label",fmt='%s',comments ='')
